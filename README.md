@@ -2,59 +2,157 @@
     <a href="https://github.com/yiisoft" target="_blank">
         <img src="https://avatars0.githubusercontent.com/u/993323" height="100px">
     </a>
-    <h1 align="center">Yii 2 Advanced Project Template</h1>
+    <h1 align="center">Yii 2 Advanced Project Template Example usage with yiisoft/composer-config-plugin</h1>
     <br>
 </p>
 
-Yii 2 Advanced Project Template is a skeleton [Yii 2](http://www.yiiframework.com/) application best for
-developing complex Web applications with multiple tiers.
+1. install yiisoft/composer-config-plugin, add following lines into your `composer.json`:
+```json
+...
 
-The template includes three tiers: front end, back end, and console, each of which
-is a separate Yii application.
+"yiisoft/composer-config-plugin": "^1.0@dev"
+...
+```
 
-The template is designed to work in a team development environment. It supports
-deploying the application in different environments.
+2. Then lets add config for it, in `extra` section of `composer.json` add this:
+```json
+    "extra": {
+        "config-plugin-output-dir": "build/configs",
+        "config-plugin": {
+            "constants": [
+                "common/config/constants-local.php"
+            ],
+            "params": [
+                "common/config/params.php",
+                "?common/config/params-local.php"
+            ],
+            "params_frontend": [
+                "$params",
+                "frontend/config/params.php",
+                "?frontend/config/params-local.php"
+            ],
+            "params_backend": [
+                "$params",
+                "backend/config/params.php",
+                "?backend/config/params-local.php"
+            ],
+            "params_console": [
+                "$params",
+                "console/config/params.php",
+                "?console/config/params-local.php"
+            ],
+            "common": [
+                "common/config/main.php",
+                "?common/config/main-local.php"
+            ],
+            "backend": [
+                "$common",
+                "backend/config/main.php",
+                "?backend/config/main-local.php"
+            ],
+            "console": [
+                "$common",
+                "console/config/main.php",
+                "?console/config/main-local.php"
+            ],
+            "frontend": [
+                "$common",
+                "frontend/config/main.php",
+                "?frontend/config/main-local.php"
+            ],
+            "test": [
+                "common/config/test.php",
+                "?common/config/test-local.php"
+            ],
+            "test-backend": [
+                "$test",
+                "backend/config/test.php",
+                "?backend/config/test-local.php"
+            ],
+            "test-console": [
+                "$test",
+                "console/config/test.php",
+                "?console/config/test-local.php"
+            ],
+            "test-frontend": [
+                "$test",
+                "frontend/config/test.php",
+                "?frontend/config/test-local.php"
+            ]
+        }
+    }
 
-Documentation is at [docs/guide/README.md](docs/guide/README.md).
+``` 
+3. Create `build/config` directory and chmod it to 777.
 
-[![Latest Stable Version](https://img.shields.io/packagist/v/yiisoft/yii2-app-advanced.svg)](https://packagist.org/packages/yiisoft/yii2-app-advanced)
-[![Total Downloads](https://img.shields.io/packagist/dt/yiisoft/yii2-app-advanced.svg)](https://packagist.org/packages/yiisoft/yii2-app-advanced)
-[![Build Status](https://travis-ci.com/yiisoft/yii2-app-advanced.svg?branch=master)](https://travis-ci.com/yiisoft/yii2-app-advanced)
-
-DIRECTORY STRUCTURE
--------------------
+4. We need to add `constants` file `common/config/constants-local.php` , we add it globally, as a 'hack', since this config plugin dont meant to be used in `3 in 1` app :
+```php
+<?php
+define("YII_ENV", 'prod');
+define("YII_DEBUG", true);
+define("YII_ENV_TEST", YII_ENV === 'test');
 
 ```
-common
-    config/              contains shared configurations
-    mail/                contains view files for e-mails
-    models/              contains model classes used in both backend and frontend
-    tests/               contains tests for common classes    
-console
-    config/              contains console configurations
-    controllers/         contains console controllers (commands)
-    migrations/          contains database migrations
-    models/              contains console-specific model classes
-    runtime/             contains files generated during runtime
-backend
-    assets/              contains application assets such as JavaScript and CSS
-    config/              contains backend configurations
-    controllers/         contains Web controller classes
-    models/              contains backend-specific model classes
-    runtime/             contains files generated during runtime
-    tests/               contains tests for backend application    
-    views/               contains view files for the Web application
-    web/                 contains the entry script and Web resources
-frontend
-    assets/              contains application assets such as JavaScript and CSS
-    config/              contains frontend configurations
-    controllers/         contains Web controller classes
-    models/              contains frontend-specific model classes
-    runtime/             contains files generated during runtime
-    tests/               contains tests for frontend application
-    views/               contains view files for the Web application
-    web/                 contains the entry script and Web resources
-    widgets/             contains frontend widgets
-vendor/                  contains dependent 3rd-party packages
-environments/            contains environment-based overrides
+This way we will have all constants, used in configs. 
+
+
+
+5. Next, there is two way to define a `params` array for APP configuration, first one is to set it exacly in `main.php` config:
+
+```php
+return [
+    'id' => 'app-frontend',
+    'basePath' => dirname(__DIR__),
+    'bootstrap' => ['log'],
+    'controllerNamespace' => 'frontend\controllers',
+    'components' => [
+        'request' => [
+            'csrfParam' => '_csrf-frontend',
+        ],
+       
+        //....
+       
+        'errorHandler' => [
+            'errorAction' => 'site/error',
+        ],
+        //....
+    ],
+    'params' => $params_frontend,
+];
+
 ```
+as you can see, we using `$params_frontend` here, previously defined in `composer.json`, so composer-config-plugin will provide it, OR
+There is an other way to use it, by getting it in entry script, for example `frontend/web/index.php`:
+
+```php
+<?php
+
+require __DIR__ . '/../../vendor/autoload.php';
+require __DIR__ . '/../../vendor/yiisoft/yii2/Yii.php';
+require __DIR__ . '/../../common/config/bootstrap.php';
+require __DIR__ . '/../config/bootstrap.php';
+
+$config = require Yiisoft\Composer\Config\Builder::path('frontend');
+$params = require Yiisoft\Composer\Config\Builder::path('frontend_params');
+$config['params'] = $params;
+(new yii\web\Application($config))->run();
+
+```
+
+but for me, better to setup `$params` in app config. this way we get this entry point:
+```php
+<?php
+
+require __DIR__ . '/../../vendor/autoload.php';
+require __DIR__ . '/../../vendor/yiisoft/yii2/Yii.php';
+require __DIR__ . '/../../common/config/bootstrap.php';
+require __DIR__ . '/../config/bootstrap.php';
+
+$config = require Yiisoft\Composer\Config\Builder::path('frontend');
+(new yii\web\Application($config))->run();
+
+```
+
+6. run `composer du` in command line yo build configs. 
+
+7. profit.
